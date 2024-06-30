@@ -1,6 +1,7 @@
 package com.example.moviesapp.ui.presentation
 
 import android.annotation.SuppressLint
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -107,9 +109,9 @@ fun MoviesScreen(
                     // Use local state for shimmer effect
                     var showShimmer by remember { mutableStateOf(true) }
 
-                    // If movie is null or in loading state, show shimmer
-                    val isLoading = moviePagingItems.loadState.source.refresh is LoadState.Loading ||
-                            moviePagingItems.loadState.append is LoadState.Loading
+//                    // If movie is null or in loading state, show shimmer
+//                    val isLoading = moviePagingItems.loadState.source.refresh is LoadState.Loading ||
+//                            moviePagingItems.loadState.append is LoadState.Loading
                     Card(
                         modifier = Modifier
                             .padding(8.dp)
@@ -125,20 +127,33 @@ fun MoviesScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Box {
-                                AsyncImage(
-                                    modifier = Modifier
-                                        .height(250.dp)
-                                        .background(
-                                            shimmerBrush(
-                                                targetValue = 1300f,
-                                                showShimmer = showShimmer || isLoading
-                                            )
-                                        ),
-                                    model = IMAGE_BASE_URL + moviePagingItems[index]!!.poster_path,
-                                    contentDescription = "Poster",
-                                    onSuccess = { showShimmer = false },
-                                    contentScale = ContentScale.FillBounds
-                                )
+                                if (moviePagingItems[index]!!.poster_path.isNullOrEmpty()){
+                                    Image(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(250.dp),
+                                        painter = painterResource(id = R.drawable.no_image_poster),
+                                        contentDescription = null,
+                                        contentScale = ContentScale.FillBounds
+                                        )
+                                }
+                                else{
+                                    AsyncImage(
+                                        modifier = Modifier
+                                            .height(250.dp)
+                                            .background(
+                                                shimmerBrush(
+                                                    targetValue = 1300f,
+                                                    showShimmer = showShimmer //|| isLoading
+                                                )
+                                            ),
+                                        model = IMAGE_BASE_URL + moviePagingItems[index]!!.poster_path,
+                                        contentDescription = "Poster",
+                                        onSuccess = { showShimmer = false },
+                                        contentScale = ContentScale.FillBounds
+                                    )
+                                }
+
                                 Box(
                                     modifier = Modifier
                                         .wrapContentWidth(),
@@ -168,24 +183,21 @@ fun MoviesScreen(
                 moviePagingItems.apply {
                     when {
                         loadState.refresh is LoadState.Loading -> {
-                            items(20){
+                            items(6){
                                 ShimmerOnLoading()
                             }
                         }
 
                         loadState.refresh is LoadState.Error -> {
-                            items(20){
+                            items(6){
                                 ShimmerOnLoading()
                             }
                         }
 
                         loadState.append is LoadState.Loading -> {
-                            items(20){
-                                ShimmerOnLoading()
-                            }
                         }
                         loadState.append is LoadState.Error -> {
-                            items(20){
+                            items(6){
                                 ShimmerOnLoading()
                             }
                         }

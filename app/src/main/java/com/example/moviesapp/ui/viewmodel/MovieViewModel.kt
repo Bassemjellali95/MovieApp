@@ -52,7 +52,6 @@ class MovieViewModel @Inject constructor(
         Pager(
             PagingConfig(
                 pageSize = 20,
-                enablePlaceholders = false
             )
         ) {
             MoviePagingSource(

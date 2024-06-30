@@ -1,6 +1,7 @@
 package com.example.moviesapp.ui.presentation
 
 import android.annotation.SuppressLint
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,6 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -49,8 +51,10 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.movieapp.data.moviedetails.Genre
 import com.example.movieapp.data.moviedetails.MovieDetailsResponse
+import com.example.moviesapp.R
 import com.example.moviesapp.common.IMAGE_BASE_URL
 import com.example.moviesapp.common.formatMinutesToHoursAndMinutes
+import com.example.moviesapp.common.shimmerBrush
 import com.example.moviesapp.ui.viewmodel.MovieViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -87,6 +91,7 @@ fun MovieDetailsScreen(
     Scaffold {
         val scrollState = rememberScrollState()
         subState.movieDetails?.let { result ->
+            var showShimmer by remember { mutableStateOf(true) }
 
             Column(
                 modifier = Modifier
@@ -98,15 +103,33 @@ fun MovieDetailsScreen(
                         .fillMaxWidth()
                         .fillMaxHeight()
                 ) {
-                    AsyncImage(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(400.dp),
-                        model = if (result.backdrop_path.isNullOrEmpty()) IMAGE_BASE_URL + result.belongs_to_collection.backdrop_path
-                        else IMAGE_BASE_URL + result.backdrop_path,
-                        contentDescription = "Poster",
-                        contentScale = ContentScale.FillBounds
-                    )
+                    if (result.backdrop_path.isNullOrEmpty()){
+                        Image(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(250.dp),
+                            painter = painterResource(id = R.drawable.no_image_poster),
+                            contentDescription = null,
+                            contentScale = ContentScale.FillBounds
+                        )
+                    }
+                    else {
+                        AsyncImage(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    shimmerBrush(
+                                        targetValue = 1300f,
+                                        showShimmer = showShimmer
+                                    )
+                                )
+                                .height(400.dp),
+                            model = IMAGE_BASE_URL + result.backdrop_path,
+                            contentDescription = "Poster",
+                            onSuccess = { showShimmer = false },
+                            contentScale = ContentScale.FillBounds
+                        )
+                    }
                     IconButton(
                         onClick = { navController.popBackStack() },
                         modifier = Modifier
