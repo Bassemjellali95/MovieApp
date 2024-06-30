@@ -6,18 +6,22 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -25,23 +29,26 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SearchBar
-import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -52,6 +59,7 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import coil.compose.AsyncImage
 import com.example.moviesapp.R
 import com.example.moviesapp.common.IMAGE_BASE_URL
+import com.example.moviesapp.common.shimmerBrush
 import com.example.moviesapp.data.remote.dto.allmovies.Movie
 import com.example.moviesapp.ui.viewmodel.MovieViewModel
 import com.example.nearbuy.navigation.Screen
@@ -67,35 +75,28 @@ fun MoviesScreen(
     val moviePagingItems: LazyPagingItems<Movie> = viewModel.moviesList.collectAsLazyPagingItems()
 
     val lazyGridState = rememberLazyGridState()
-    var isSearchActive by rememberSaveable { mutableStateOf(false) }
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     Scaffold(
         topBar = {
-            Row {
-                ProjectsTopAppBar(
-                    modifier = Modifier.background(MaterialTheme.colorScheme.background),
-                    onBackClick = {},
-                    scrollBehavior = scrollBehavior,
-                )
-            }
-            Row(verticalAlignment = Alignment.Top) {
-                EmbeddedSearchBar(
-                    onQueryChange = { },
-                    isSearchActive = isSearchActive,
-                    onActiveChanged = { isSearchActive = it },
-                    modifier = Modifier
-                        .padding(top = 50.dp)
-                        .fillMaxWidth()
-                )
-            }
+            ProjectsTopAppBar(
+                modifier = Modifier.background(MaterialTheme.colorScheme.background),
+                onBackClick = {},
+                scrollBehavior = scrollBehavior,
+            )
+            EmbeddedSearchBar(
+                onQueryChange = { viewModel.setSearch(it) },
+                modifier = Modifier
+                    .padding(top = 90.dp)
+                    .fillMaxWidth()
+            )
         },
         content = {
             LazyVerticalGrid(
                 state = lazyGridState,
                 columns = GridCells.Fixed(2),
                 contentPadding = PaddingValues(
-                    top = 150.dp,
+                    top = 170.dp,
                     start = 16.dp,
                     end = 16.dp,
                     bottom = 16.dp
@@ -103,6 +104,12 @@ fun MoviesScreen(
                 modifier = Modifier.fillMaxSize()
             ) {
                 items(moviePagingItems.itemCount) { index ->
+                    // Use local state for shimmer effect
+                    var showShimmer by remember { mutableStateOf(true) }
+
+                    // If movie is null or in loading state, show shimmer
+                    val isLoading = moviePagingItems.loadState.source.refresh is LoadState.Loading ||
+                            moviePagingItems.loadState.append is LoadState.Loading
                     Card(
                         modifier = Modifier
                             .padding(8.dp)
@@ -120,9 +127,16 @@ fun MoviesScreen(
                             Box {
                                 AsyncImage(
                                     modifier = Modifier
-                                        .fillMaxSize(),
+                                        .height(250.dp)
+                                        .background(
+                                            shimmerBrush(
+                                                targetValue = 1300f,
+                                                showShimmer = showShimmer || isLoading
+                                            )
+                                        ),
                                     model = IMAGE_BASE_URL + moviePagingItems[index]!!.poster_path,
                                     contentDescription = "Poster",
+                                    onSuccess = { showShimmer = false },
                                     contentScale = ContentScale.FillBounds
                                 )
                                 Box(
@@ -154,21 +168,54 @@ fun MoviesScreen(
                 moviePagingItems.apply {
                     when {
                         loadState.refresh is LoadState.Loading -> {
+                            items(20){
+                                ShimmerOnLoading()
+                            }
                         }
 
                         loadState.refresh is LoadState.Error -> {
+                            items(20){
+                                ShimmerOnLoading()
+                            }
                         }
 
                         loadState.append is LoadState.Loading -> {
+                            items(20){
+                                ShimmerOnLoading()
+                            }
                         }
-
                         loadState.append is LoadState.Error -> {
+                            items(20){
+                                ShimmerOnLoading()
+                            }
                         }
                     }
                 }
             }
         }
     )
+}
+
+@Composable
+fun ShimmerOnLoading(){
+    Box(modifier = Modifier
+        .padding(7.dp)
+        .background(Color.Transparent, shape = RoundedCornerShape(8.dp))) {
+        AsyncImage(
+            modifier = Modifier
+                .height(250.dp)
+                .background(
+                    shimmerBrush(
+                        targetValue = 1300f,
+                        showShimmer = true
+                    ),
+                    RoundedCornerShape(8.dp)
+                ),
+            model = null,
+            contentDescription = "Poster",
+            contentScale = ContentScale.FillBounds
+        )
+    }
 }
 
 @Composable
@@ -212,42 +259,73 @@ fun ProjectsTopAppBar(
 @OptIn(ExperimentalMaterial3Api::class)
 fun EmbeddedSearchBar(
     onQueryChange: (String) -> Unit,
-    isSearchActive: Boolean,
-    onActiveChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     onSearch: ((String) -> Unit)? = null,
 ) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
-    val activeChanged: (Boolean) -> Unit = { active ->
-        searchQuery = ""
-        onQueryChange("")
-        onActiveChanged(active)
-    }
-    SearchBar(
-        query = searchQuery,
-        onQueryChange = { query ->
-            searchQuery = query
-            onQueryChange(query)
-        },
-        onSearch = { onSearch },
-        active = isSearchActive,
-        onActiveChange = activeChanged,
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    Box(
         modifier = modifier
-            .padding(start = 12.dp, top = 2.dp, end = 12.dp, bottom = 12.dp)
-            .fillMaxWidth(),
-        placeholder = { Text("Search") },
-        leadingIcon = {
-            Icon(
-                imageVector = Icons.Rounded.Search,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        },
-        colors = SearchBarDefaults.colors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ),
-        tonalElevation = 0.dp,
+            .fillMaxWidth()
+            .height(80.dp)
+            .padding(horizontal = 10.dp)
+            .background(color = MaterialTheme.colorScheme.background),
+        contentAlignment = Alignment.CenterStart
     ) {
-        // Search suggestions or results
+        TextField(
+            value = searchQuery,
+            onValueChange = {
+                searchQuery = it
+                onQueryChange(it)
+            },
+            placeholder = {
+                Text("Search")
+            },
+            singleLine = true,
+            keyboardActions = KeyboardActions(
+                onSearch = {
+                    onSearch?.invoke(searchQuery)
+                    keyboardController?.hide()
+                }
+            ),
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Rounded.Search,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    MaterialTheme.colorScheme.surfaceContainerHigh,
+                    RoundedCornerShape(30.dp)
+                )
+                .padding(horizontal = 10.dp),
+            colors = TextFieldDefaults.textFieldColors(
+                containerColor = Color.Transparent,
+                cursorColor = MaterialTheme.colorScheme.onSurface,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent
+            ),
+            keyboardOptions = KeyboardOptions.Default.copy(
+                imeAction = ImeAction.Search
+            ),
+        )
+        if (searchQuery.isNotEmpty()) {
+            Icon(
+                imageVector = Icons.Rounded.Close,
+                contentDescription = "Clear Search",
+                tint = Color.DarkGray,
+                modifier = Modifier
+                    .clickable {
+                        searchQuery = ""
+                        onQueryChange("")
+                    }
+                    .align(Alignment.CenterEnd)
+                    .padding(horizontal = 10.dp)
+            )
+        }
     }
 }

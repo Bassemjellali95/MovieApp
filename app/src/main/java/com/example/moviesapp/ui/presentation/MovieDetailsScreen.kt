@@ -138,6 +138,7 @@ fun MovieDetailsScreen(
                         Text(
                             text = result.title,
                             fontSize = 24.sp,
+                            color = Color.White,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier
                                 .padding(horizontal = 16.dp, vertical = 16.dp)

@@ -7,13 +7,18 @@ import com.example.moviesapp.data.remote.MovieDbApi
 import com.example.moviesapp.data.remote.dto.allmovies.Movie
 
 class MoviePagingSource(
-    private val movieApi: MovieDbApi
+    private val movieApi: MovieDbApi,
+    private val query: String?
 ) : PagingSource<Int, Movie>() {
 
     override suspend fun load(params: LoadParams<Int>): LoadResult<Int, Movie> {
         return try {
             val page = params.key ?: 1
-            val response = movieApi.getMovies(page)
+            val response = if (query.isNullOrEmpty()) {
+                movieApi.getMovies(page)
+            } else {
+                movieApi.getMovieSearch(query, page)
+            }
             LoadResult.Page(
                 data = response.results,
                 prevKey = if (page == 1) null else page - 1,

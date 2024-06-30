@@ -1,5 +1,6 @@
 package com.example.moviesapp.ui.viewmodel
 
+import android.annotation.SuppressLint
 import android.util.Log
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
@@ -13,10 +14,19 @@ import com.example.moviesapp.data.remote.MovieDbApi
 import com.example.moviesapp.data.states.MovieDetailsState
 import com.example.moviesapp.domain.usecase.MovieUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import retrofit2.HttpException
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 
 @HiltViewModel
 class MovieViewModel @Inject constructor(
@@ -27,10 +37,30 @@ class MovieViewModel @Inject constructor(
     private val _moviesState = mutableStateOf(MovieDetailsState())
     val moviesState: State<MovieDetailsState> = _moviesState
 
-    val moviesList = Pager(PagingConfig(1)) {
-        MoviePagingSource(api)
-    }.flow.cachedIn(viewModelScope)
+    private val _search = MutableStateFlow("")
 
+    private val search = _search.asStateFlow()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(),
+            initialValue = "",
+        )
+
+    @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
+    @SuppressLint("CheckResult")
+    val moviesList = search.debounce(300.milliseconds).flatMapLatest { query ->
+        Pager(
+            PagingConfig(
+                pageSize = 20,
+                enablePlaceholders = false
+            )
+        ) {
+            MoviePagingSource(
+                movieApi = api,
+                query = query
+            )
+        }.flow.cachedIn(viewModelScope)
+    }
 
     fun getMovieDetails(
         movieId: Int
@@ -52,7 +82,8 @@ class MovieViewModel @Inject constructor(
                             try {
                                 result.throwable.let { error ->
                                     val errorBody =
-                                        (error as HttpException).response()?.errorBody()?.string()
+                                        (error as HttpException).response()?.errorBody()
+                                            ?.string()
                                     JSONObject(errorBody ?: "").getString("message")
                                 } ?: "An unexpected error occurred"
                             } catch (e: Exception) {
@@ -70,4 +101,9 @@ class MovieViewModel @Inject constructor(
             }
         }
     }
+
+    fun setSearch(query: String) {
+        _search.value = query
+    }
+
 }

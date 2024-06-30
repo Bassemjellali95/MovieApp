@@ -8,6 +8,7 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import javax.inject.Singleton
@@ -16,15 +17,24 @@ import javax.inject.Singleton
 @Module
 object NetworkModule {
 
+    private val client = OkHttpClient().newBuilder().apply {
+        addInterceptor(RequestInterceptor())
+    }.build()
+
     @Singleton
     @Provides
     fun provideRetrofitInterface(): MovieDbApi {
-        return Retrofit.Builder().baseUrl(API_BASE_URL).addConverterFactory(
-            GsonConverterFactory.create()
-        ).build().create(MovieDbApi::class.java)
+        return Retrofit
+            .Builder()
+            .baseUrl(API_BASE_URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .client(client)
+            .build()
+            .create(MovieDbApi::class.java)
     }
 
     @Provides
     @Singleton
     fun provideAuthRepository(api: MovieDbApi): MovieRepository = MovieRepositoryImpl(api)
+
 }
